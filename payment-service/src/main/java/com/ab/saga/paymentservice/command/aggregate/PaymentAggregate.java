@@ -1,6 +1,5 @@
 package com.ab.saga.paymentservice.command.aggregate;
 
-
 import com.ab.commonapi.commands.CancelPaymentCommand;
 import com.ab.commonapi.commands.CreateUserBalanceCommand;
 import com.ab.commonapi.commands.ProcessPaymentCommand;
@@ -28,21 +27,29 @@ public class PaymentAggregate {
     private PaymentStatus paymentStatus;
 
     public PaymentAggregate() {
-
+        // Default constructor
     }
 
+    // Updated constructor with null checks for CreateUserBalanceCommand
     @CommandHandler
     public PaymentAggregate(CreateUserBalanceCommand balanceCommand) {
         log.info("CreateUserBalanceCommand received");
 
+        // Null check for amount in the command
+        if (balanceCommand.amount() == null) {
+            throw new IllegalArgumentException("Amount cannot be null");
+        }
+
+        // Check for negative amounts
         if (balanceCommand.amount().doubleValue() < 0) {
-            throw new RuntimeException("Negative amount");
+            throw new RuntimeException("Negative amount is not allowed");
         }
 
         AggregateLifecycle.apply(new UserBalanceCreatedEvent(balanceCommand.userId(),
                 balanceCommand.amount()));
     }
 
+    // Event Sourcing Handler for UserBalanceCreatedEvent
     @EventSourcingHandler
     public void on(UserBalanceCreatedEvent userBalanceCreatedEvent) {
         log.info("UserBalanceCreatedEvent occurred");
@@ -51,6 +58,7 @@ public class PaymentAggregate {
         this.balance = userBalanceCreatedEvent.amount();
     }
 
+    // Command handler for processing payments
     @CommandHandler
     public void handle(ProcessPaymentCommand paymentCommand) {
         log.info("ProcessPaymentCommand received");
@@ -67,6 +75,7 @@ public class PaymentAggregate {
         }
     }
 
+    // Event Sourcing Handler for PaymentProcessedEvent
     @EventSourcingHandler
     public void on(PaymentProcessedEvent paymentProcessedEvent) {
         log.info("PaymentProcessedEvent occurred");
@@ -77,6 +86,7 @@ public class PaymentAggregate {
         this.paymentStatus = paymentProcessedEvent.paymentStatus();
     }
 
+    // Command handler for cancelling payments
     @CommandHandler
     public void handle(CancelPaymentCommand cancelPaymentCommand) {
         log.info("CancelPaymentCommand received");
@@ -87,7 +97,7 @@ public class PaymentAggregate {
                 PaymentStatus.PAYMENT_CANCELLED));
     }
 
-
+    // Event Sourcing Handler for PaymentCancelledEvent
     @EventSourcingHandler
     public void on(PaymentCancelledEvent paymentCancelledEvent) {
         log.info("PaymentCancelledEvent occurred");
